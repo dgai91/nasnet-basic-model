@@ -23,7 +23,6 @@ class NASCell(nn.Module):
     def forward(self, input, state):
         (m_prev, c_prev) = state
         m_matrix = torch.mm(m_prev, self.concat_w_m)
-
         input_matrix = torch.mm(input, self.concat_w_inputs)
         if self._use_biases:
             m_matrix = torch.add(m_matrix, self.b)

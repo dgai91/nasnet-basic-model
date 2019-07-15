@@ -20,9 +20,7 @@ class NetManager:
         self.bathc_size = bathc_size
         self.dropout_rate = dropout_rate
 
-    def get_reward(self, action, pre_acc):
-        action = action.detach().numpy().astype(int)
-        action = [action[0][0][x:x + 4] for x in range(0, len(action[0][0]), 4)]
+    def get_reward(self, action):
         model = CNN(self.num_input, self.num_classes, action)
         print(model)
         loss_func = nn.CrossEntropyLoss()
@@ -47,8 +45,4 @@ class NetManager:
             to = model(tx)
             out = np.argmax(to.detach().numpy(), axis=1)
             acc = accuracy_score(ty.detach().numpy(), out)
-            print("!!!!!!acc:", acc, pre_acc)
-            if acc - pre_acc <= 0.01:
-                return acc, acc
-            else:
-                return 0.01, acc
+            return acc

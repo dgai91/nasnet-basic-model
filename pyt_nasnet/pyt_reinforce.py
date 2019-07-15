@@ -1,6 +1,5 @@
 import torch
 import random
-import numpy as np
 from torch import nn
 from pyt_nasnet.nn_nas_rnn import LSTMLayer, NASCell
 
@@ -20,29 +19,27 @@ class Reinforce(nn.Module):
         self.exploration = exploration
         self.reward_buffer = []
         self.state_buffer = []
-        self.policy_network = LSTMLayer(NASCell, self.input_size, 4 * self.max_layers)
-        self.bias = nn.Parameter(torch.FloatTensor([0.05] * 4 * self.max_layers))
+        self.policy_layer = LSTMLayer(NASCell, self.input_size, 100)
+        self.output_layer = LSTMLayer(NASCell, 100, self.input_size)
 
-    def init_hidden(self):
-        state = (torch.randn(1, 4 * self.max_layers), torch.randn(1, 4 * self.max_layers))
+    def init_hidden_state(self, hidden_size):
+        state = (torch.randn(1, hidden_size), torch.randn(1, hidden_size))
         return state
 
     def get_action(self, state):
         if random.random() < self.exploration:
-            action = np.array([[random.sample(range(1, 35), 4 * self.max_layers)]])
-            return torch.from_numpy(action)
+            rand_action = torch.randn_like(state)
+            return rand_action
         else:
-            hidden = self.init_hidden()
-            state = state.unsqueeze(-1)
-            action_scores, state = self.policy_network(state, hidden)
-            return torch.ceil(self.division_rate * action_scores[:, -1, :].unsqueeze(1))
+            self.forward(state)
 
     def store_roll_out(self, state, reward):
         self.reward_buffer.append(reward)
         self.state_buffer.append(state[0])
 
     def forward(self, state):
-        hidden = self.init_hidden()
-        state = state.unsqueeze(-1)
-        log_prob, state = self.policy_network(state, hidden)
-        return log_prob
+        hidden_state = self.init_hidden_state(100)
+        hidden, hidden_state = self.policy_layer(state, hidden_state)
+        hidden_state = self.init_hidden_state(self.input_size)
+        output, _ = self.output_layer(hidden, hidden_state)
+        return output

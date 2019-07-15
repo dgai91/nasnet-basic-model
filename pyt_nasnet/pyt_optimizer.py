@@ -25,7 +25,7 @@ class DCRMSprop(Optimizer):
 
     """
 
-    def __init__(self, params, discounted_rewards,
+    def __init__(self, params, discounted_rewards, baseline,
                  lr=1e-2, alpha=0.99, eps=1e-8, weight_decay=0, momentum=0, centered=False):
         if not 0.0 <= lr:
             raise ValueError("Invalid learning rate: {}".format(lr))
@@ -38,7 +38,7 @@ class DCRMSprop(Optimizer):
         if not 0.0 <= alpha:
             raise ValueError("Invalid alpha value: {}".format(alpha))
 
-        defaults = dict(lr=lr, momentum=momentum, discounted_rewards=discounted_rewards,
+        defaults = dict(lr=lr, momentum=momentum, discounted_rewards=discounted_rewards, baseline=baseline,
                         alpha=alpha, eps=eps, centered=centered, weight_decay=weight_decay)
         super(DCRMSprop, self).__init__(params, defaults)
 
@@ -63,7 +63,7 @@ class DCRMSprop(Optimizer):
             for p in group['params']:
                 if p.grad is None:
                     continue
-                grad = p.grad.data * group['discounted_rewards']
+                grad = p.grad.data * (group['discounted_rewards'] - group['baseline'])
                 if grad.is_sparse:
                     raise RuntimeError('RMSprop does not support sparse gradients')
                 state = self.state[p]

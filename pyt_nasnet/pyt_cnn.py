@@ -11,10 +11,7 @@ class CNN(nn.Module):
 
     def __init__(self, num_input, num_class, cnn_config):
         super(CNN, self).__init__()
-        cnn_ksize = [c[0] for c in cnn_config]
-        num_filters = [c[1] for c in cnn_config]
-        max_pool_ksize = [c[2] for c in cnn_config]
-        cnn_drop_rate = [c[3] for c in cnn_config]
+        cnn_ksize, num_filters, max_pool_ksize = cnn_config
 
         self.model = nn.Sequential()
         ic = 1
@@ -27,11 +24,7 @@ class CNN(nn.Module):
             relu = nn.ReLU()
             pool = nn.MaxPool1d(kernel_size=int(max_pool_ksize[idd]),
                                 stride=1)
-
-            if cnn_drop_rate[idd] >= 1:
-                dropout = nn.Dropout(0.0)
-            else:
-                dropout = nn.Dropout(cnn_drop_rate[idd])
+            dropout = nn.Dropout(0.5)
             self.model.add_module('conv_out_' + str(idd), conv)
             self.model.add_module('relu_' + str(idd), relu)
             self.model.add_module('max_pool_' + str(idd), pool)
