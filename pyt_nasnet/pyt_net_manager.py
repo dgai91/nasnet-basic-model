@@ -40,7 +40,7 @@ class NetManager:
                       ", Minibatch Loss= " + "{:.4f}".format(loss) +
                       ", Current accuracy= " + "{:.3f}".format(accuracy_score(y, out)))
         model.eval()
-        for step, (tx, ty) in enumerate(self.train_loader):
+        for step, (tx, ty) in enumerate(self.test_loader):
             tx = tx.view(-1, 784).unsqueeze(1)
             to = model(tx)
             out = np.argmax(to.detach().numpy(), axis=1)
