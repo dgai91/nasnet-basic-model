@@ -1,6 +1,7 @@
 import torch
 from torch import sigmoid, tanh, relu_
 import torch.nn as nn
+from torch.distributions.one_hot_categorical import OneHotCategorical
 
 
 class NASCell(nn.Module):
@@ -70,4 +71,42 @@ class LSTMLayer(nn.Module):
             out, state = self.cell(inputs[i], state)
             outputs += [out]
         return torch.stack(outputs, dim=1), state
+
+
+class Reinforce(nn.Module):
+    def __init__(self, cell, classes, num_cells, hidden_size):
+        super(Reinforce, self).__init__()
+        self.classes = classes
+        self.num_cells = num_cells
+        self.hidden_size = hidden_size
+        self.reward_buffer = []
+        self.state_buffer = []
+        self.cells = nn.ModuleList([cell(classes, hidden_size), cell(hidden_size, hidden_size)])
+        self.predictors = nn.ModuleList([nn.Linear(hidden_size, self.classes) for _ in range(self.num_cells)])
+        self.pred = nn.Softmax(dim=-1)
+
+    def get_action(self, state):
+        action_prob = self.forward(state)[0]
+        sampler = OneHotCategorical(logits=action_prob)
+        return sampler.sample()
+
+    def store_roll_out(self, state, reward):
+        for idx in range(state.size()[0]):
+            self.reward_buffer.append(reward[idx])
+            self.state_buffer.append(state[idx])
+
+    def forward(self, input_tensor, hidden_states=None):
+        outputs, batch_size = [], input_tensor.size()[0]
+        if hidden_states is None:
+            state = tuple([torch.randn(batch_size, self.hidden_size)] * 2)
+            hidden_states = [state, state]
+        pre_out = input_tensor
+        for time in range(self.num_cells):
+            for i, cell in enumerate(self.cells):
+                pre_out, out_state = cell(pre_out, hidden_states[i])
+                hidden_states[i] = out_state
+            pre_out = self.predictors[time](pre_out)
+            outputs.append(pre_out)
+        # get softmax prob
+        return self.pred(torch.stack(tuple(outputs), dim=1)), hidden_states
 
