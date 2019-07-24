@@ -1,5 +1,5 @@
 from pyt_nasnet.pyt_net_manager import NetManager
-from pyt_nasnet.nn_nas_rnn import Reinforce, NASCell
+from pyt_nasnet.pyt_nas_rnn import Reinforce, NASCell
 from torchvision.datasets import MNIST
 from torchvision.transforms import ToTensor
 from torch.utils.data.dataloader import DataLoader
