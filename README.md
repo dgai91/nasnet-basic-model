@@ -8,7 +8,9 @@ CPU i7-7700      Python 3.6.8     Pytorch 1.1.0
 
 ### Repo Contains:
 NAS model(NAS cell + reinforce framework)
+
 CNN model
+
 child network manager
 ### Bash into pyt_nasnet and input:
 ```
