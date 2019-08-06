@@ -1,7 +1,9 @@
 # Network-Architecture-Search-Basic-Model
 This repo is an implementation of NASNET, which proposed from [Neural Architecture Search with Reinforcement Learning](https://arxiv.org/abs/1611.01578).
+I think automl with RL can be a general method to generate models. But I can not find a github repo successfully implement layer anchor. So I Recreated the wheel.
 
-My code referenced [this repo](https://github.com/wallarm/nascell-automl). 
+some codes referenced [this repo](https://github.com/wallarm/nascell-automl).
+
 
 ### Environment:  
 CPU i7-7700      Python 3.6.8     Pytorch 1.1.0    
