@@ -1,6 +1,6 @@
 from pyt_nasnet.pyt_net_manager import NetManager
 from pyt_nasnet.pyt_nas_rnn import Reinforce, NASCell
-from torchvision.datasets import MNIST
+from torchvision.datasets import MNIST, CIFAR10
 from torchvision.transforms import ToTensor
 from torch.utils.data.dataloader import DataLoader
 from torch.optim import Adam
@@ -18,9 +18,9 @@ from torch.distributions.one_hot_categorical import OneHotCategorical
 
 
 def action_transfer(batch_action):
-    kernels = [1, 3, 5, 7]
-    filters = [24, 36, 48, 64]
-    pool_k = [1, 3, 5, 7]
+    kernels = [1, 1, 3, 3, 5, 5, 3, 5]
+    filters = [16, 24, 32, 48, 64, 96, 128, 256]
+    pool_k = [1, 1, 3, 3, 1, 1, 3, 3]
     batch_action = batch_action.detach().numpy().astype(int)
     batch_action = np.argmax(batch_action, axis=-1)
     batch_action_list = []
@@ -33,21 +33,22 @@ def action_transfer(batch_action):
     return batch_action_list
 
 
-train_data = MNIST('../mnist', train=True, transform=ToTensor(), download=False)
-test_data = MNIST('../mnist', train=False, transform=ToTensor())
-print("train_data:", train_data.data.size())
-print("train_labels:", train_data.targets.size())
-print("test_data:", test_data.data.size())
+# train_data = MNIST('../mnist', train=True, transform=ToTensor(), download=False)
+# test_data = MNIST('../mnist', train=False, transform=ToTensor())
+train_data = CIFAR10('../cifar10', train=True, transform=ToTensor(), download=False)
+test_data = CIFAR10('../cifar10', train=False, transform=ToTensor())
+print("train_data:", train_data.data.size)
+print("test_data:", test_data.data.size)
 
 train_loader = DataLoader(dataset=train_data, batch_size=64, shuffle=True)
 test_loader = DataLoader(dataset=test_data, batch_size=64)
-device = 'cuda:0'
-max_layers = 2
-class_num = 4
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+max_layers = 3
+param_len = 8
 input_len = 3 * max_layers
-batch_size = 30
-reinforce = Reinforce(NASCell, 4, input_len, 100)
-net_manager = NetManager(num_input=784,
+batch_size = 1
+reinforce = Reinforce(NASCell, param_len, input_len, 100)
+net_manager = NetManager(num_input=32,
                          num_classes=10,
                          learning_rate=0.001,
                          train_loader=train_loader,
@@ -74,7 +75,7 @@ def ema(N, Price):
 reinforce_optim = Adam(reinforce.parameters(),
                        lr=0.0006,
                        weight_decay=0.0001)
-state = torch.randn((batch_size, class_num))
+state = torch.zeros((batch_size, param_len))
 for i_episode in range(MAX_EPISODES):
     reinforce_optim.zero_grad()
     one_hot_action = reinforce.get_action(state)
@@ -92,10 +93,9 @@ for i_episode in range(MAX_EPISODES):
 
     scheduler = StepLR(reinforce_optim, step_size=500, gamma=0.96)
     prob = reinforce(state)[0]
-    state = prob[:, -1, :]
     target = one_hot_action.detach()
     sampler = OneHotCategorical(logits=prob)
     loss = torch.mean(torch.sum(-sampler.log_prob(target), dim=-1) * (rewards - baseline))
     print(loss)
-    loss.backward(retain_graph=True)
+    loss.backward()
     reinforce_optim.step()

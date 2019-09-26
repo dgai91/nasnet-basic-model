@@ -59,20 +59,6 @@ class NASCell(nn.Module):
         return new_m, (new_m, new_c)
 
 
-class LSTMLayer(nn.Module):
-    def __init__(self, cell, *cell_args):
-        super(LSTMLayer, self).__init__()
-        self.cell = cell(*cell_args)
-
-    def forward(self, input, state):
-        inputs = input.unbind(1)
-        outputs = []
-        for i in range(len(inputs)):
-            out, state = self.cell(inputs[i], state)
-            outputs += [out]
-        return torch.stack(outputs, dim=1), state
-
-
 class Reinforce(nn.Module):
     def __init__(self, cell, classes, num_cells, hidden_size):
         super(Reinforce, self).__init__()
