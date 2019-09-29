@@ -1,6 +1,14 @@
 from torch import nn
 import torch
 import numpy as np
+import torch.nn.functional as F
+
+
+def hard_sigmoid(x):
+    x = (50 * x) + 0.5
+    x = F.threshold(-x, -1, -1)
+    x = F.threshold(-x, 0, 0)
+    return x
 
 
 # TODO: layer connection
@@ -10,6 +18,7 @@ class DenseModel(nn.Module):
         super(DenseModel, self).__init__()
         hidden_units, self.all_layer_anchors = cnn_config
         self.all_layers = []
+        self.is_training = True
         pre_out_unit = 0
         self.all_layers.append(nn.Linear(num_input, hidden_units[0]))
         for idd, layer_anchor in enumerate(self.all_layer_anchors):
@@ -26,6 +35,7 @@ class DenseModel(nn.Module):
 
     def forward(self, x, **kwargs):
         hidden = self.all_layers[0](x)
+        hidden = torch.tanh(hidden)
         all_output = [hidden]
         for idx, layer in enumerate(self.all_layers[1:-1]):
             layer_anchor = self.all_layer_anchors[idx]
@@ -38,6 +48,8 @@ class DenseModel(nn.Module):
                         pre_out.append(all_output[idd])
             pre_out = torch.cat(tuple(pre_out), dim=-1)
             pre_out = layer(pre_out)
+            pre_out = torch.sigmoid(pre_out)
+            pre_out = F.dropout(pre_out, 0.2, self.is_training)
             all_output.append(pre_out)
         output = self.all_layers[-1](all_output[-1])
         return output
