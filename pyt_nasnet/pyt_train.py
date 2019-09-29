@@ -81,7 +81,7 @@ for i_episode in range(MAX_EPISODES):
     print(rewards.mean())
 
     scheduler = StepLR(reinforce_optim, step_size=500, gamma=0.96)
-    prob = reinforce(state)
+    prob = reinforce(state, hidden_state, False)
     target = one_hot_action.detach()
     sampler = OneHotCategorical(logits=prob)
     loss = torch.mean(torch.sum(-sampler.log_prob(target), dim=-1) * (rewards - baseline))
