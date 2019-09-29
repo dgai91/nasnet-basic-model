@@ -121,17 +121,3 @@ class Reinforce(nn.Module):
             layer_anchors = torch.cat(tuple(layer_anchors), dim=-1)
             all_prob_anchors.append(layer_anchors)
         return all_hp_pred, all_prob_anchors
-
-
-x_net = Reinforce(cell=NASCell,
-                  embedding_dim=20,
-                  num_layers=7,
-                  num_hyper_param=2,
-                  hidden_size=35,
-                  pred_dims=[5] * 2)
-t = F.softmax(torch.randn(3, 5), dim=-1)
-x = OneHotCategorical(t).sample()
-act = x_net.get_action(x)
-
-
-

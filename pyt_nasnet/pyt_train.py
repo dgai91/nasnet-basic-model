@@ -1,5 +1,5 @@
-from pyt_nasnet.pyt_net_manager import NetManager
-from pyt_nasnet.pyt_nas_rnn import Reinforce, NASCell
+from trunk.pyt_nasnet.pyt_net_manager import NetManager
+from trunk.pyt_nasnet.pyt_nas_rnn import Reinforce
 from torchvision.datasets import MNIST, CIFAR10
 from torchvision.transforms import ToTensor
 from torch.utils.data.dataloader import DataLoader
@@ -8,13 +8,6 @@ from torch.optim.lr_scheduler import StepLR
 import numpy as np
 import torch
 from torch.distributions.one_hot_categorical import OneHotCategorical
-
-
-# def log_ce_with_pg(pred, truth, r, b):  # (bs, t, c)
-#     log_pred = torch.log(pred)
-#     batch_loss = torch.sum(torch.mul(truth, log_pred), dim=-1)
-#     policy_loss = torch.mul(torch.mean(batch_loss, dim=-1), (b - r))
-#     return torch.mean(policy_loss)
 
 
 def action_transfer(batch_action):
@@ -44,10 +37,11 @@ train_loader = DataLoader(dataset=train_data, batch_size=64, shuffle=True)
 test_loader = DataLoader(dataset=test_data, batch_size=64)
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 max_layers = 3
-param_len = 8
-input_len = 3 * max_layers
+num_classes = 8
+hidden_dim = 100
+param_num = 3 * max_layers
 batch_size = 1
-reinforce = Reinforce(NASCell, param_len, input_len, 100)
+reinforce = Reinforce(num_classes, hidden_dim, param_num)
 net_manager = NetManager(num_input=32,
                          num_classes=10,
                          learning_rate=0.001,
@@ -55,13 +49,8 @@ net_manager = NetManager(num_input=32,
                          test_loader=test_loader,
                          device=device)
 
-MAX_EPISODES = 2500
-step = 0
-
-a = 0.5
-
-Prices = []  # prices of everyday
-EMAs = []  # ems of everyday
+MAX_EPISODES, step, a = 2500, 0, 0.5
+Prices, EMAs = [], []  # prices, ems of everyday,
 
 
 def ema(N, Price):
@@ -75,10 +64,11 @@ def ema(N, Price):
 reinforce_optim = Adam(reinforce.parameters(),
                        lr=0.0006,
                        weight_decay=0.0001)
-state = torch.zeros((batch_size, param_len))
+state = torch.zeros((batch_size, hidden_dim))
+hidden_state = state.copy()
 for i_episode in range(MAX_EPISODES):
     reinforce_optim.zero_grad()
-    one_hot_action = reinforce.get_action(state)
+    one_hot_action = reinforce(state, hidden_state, True)
     b_action = action_transfer(one_hot_action)
     rewards, baseline = [], []
     for action in b_action:
@@ -89,10 +79,9 @@ for i_episode in range(MAX_EPISODES):
     rewards = torch.from_numpy(np.array(rewards)).float()
     baseline = torch.from_numpy(np.array(baseline)).float()
     print(rewards.mean())
-    reinforce.store_roll_out(state, rewards)
 
     scheduler = StepLR(reinforce_optim, step_size=500, gamma=0.96)
-    prob = reinforce(state)[0]
+    prob = reinforce(state)
     target = one_hot_action.detach()
     sampler = OneHotCategorical(logits=prob)
     loss = torch.mean(torch.sum(-sampler.log_prob(target), dim=-1) * (rewards - baseline))

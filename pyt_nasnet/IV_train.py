@@ -1,36 +1,39 @@
-from trunk.pyt_nasnet.dense_net_manager import NetManager
+from trunk.pyt_nasnet.reg_net_manager import NetManager
 from trunk.pyt_nasnet.nas_rnn_anchor import Reinforce, NASCell
 from torchvision.datasets import MNIST, CIFAR10
 from torchvision.transforms import ToTensor
 from torch.utils.data.dataloader import DataLoader
+from torch.utils.data import TensorDataset
+from scipy.stats import norm
 from torch.optim import Adam
 from torch.optim.lr_scheduler import StepLR
 import numpy as np
 import torch
 from torch.distributions.one_hot_categorical import OneHotCategorical
 from torch.distributions.bernoulli import Bernoulli
+
 seed = np.random.seed(1111)
 
 
 def log_ce_with_pg(pred, truth, r, b):  # (bs, t, c)
     all_hp_pred, all_prob_anchors = pred
     all_hp_act, all_act_anchors = truth
-    loss = 0
+    loss = torch.FloatTensor([0.0])
     for hp_pred, hp_act in list(zip(all_hp_pred, all_hp_act)):
         target = hp_act.detach()
         sampler = OneHotCategorical(logits=hp_pred)
-        l = torch.mean(torch.sum(-sampler.log_prob(target), dim=-1) * (r - b))
+        l = torch.mean(torch.sum(-sampler.log_prob(target), dim=-1) * (b - r))
         loss += l
     for anchors_pred, anchors_act in list(zip(all_prob_anchors, all_act_anchors)):
         target = anchors_act.detach()
         sampler = Bernoulli(logits=anchors_pred)
-        l = torch.mean(torch.sum(-sampler.log_prob(target), dim=-1) * (r - b))
+        l = torch.mean(torch.sum(-sampler.log_prob(target), dim=-1) * (b - r))
         loss += l
     return loss
 
 
 def action_transfer(hu_act, anchors):
-    units = [16, 32, 64, 128, 256]
+    units = [16, 32, 64, 128]
     hu_act = [x.detach().numpy().astype(int) for x in hu_act]
     hu_act = np.argmax(np.stack(hu_act, axis=1), axis=-1)
     batch_action_list, batch_anchor_list = [], []
@@ -46,32 +49,41 @@ def action_transfer(hu_act, anchors):
     return batch_action_list, batch_anchor_list
 
 
-train_data = CIFAR10('../cifar10', train=True, transform=ToTensor(), download=True)
-test_data = CIFAR10('../cifar10', train=False, transform=ToTensor())
-print("train_data:", train_data.data.size())
-print("train_labels:", train_data.targets.size())
-print("test_data:", test_data.data.size())
+n, p, ticks = 10000, 20, 1001
+X = 2 * np.random.rand(n, p) - 1
+Z = np.random.randn(n)
+A = np.random.randn(n)  # latent var
 
-train_loader = DataLoader(dataset=train_data, batch_size=64, shuffle=True)
-test_loader = DataLoader(dataset=test_data, batch_size=64)
+W = A + Z  # combined var
+Y = 2 * (X[:, 0] <= 0) * A + (X[:, 0] > 0) * W + (1 + (np.sqrt(3) - 1) * (X[:, 0] > 0)) * np.random.randn(n)
+X = np.concatenate([X, np.expand_dims(Z, 1), np.expand_dims(W, 1)], axis=1)
+X_test = np.zeros((ticks, p + 2))
+xvals = np.linspace(-1, 1, ticks)
+X_test[:, 0] = xvals
+truth = xvals > 0
+
+train_dataset = TensorDataset(torch.from_numpy(X)[400:].float(), torch.from_numpy(Y)[400:].float())
+train_loader = DataLoader(train_dataset, batch_size=16, shuffle=True, num_workers=0, drop_last=False)
+test_dataset = TensorDataset(torch.from_numpy(X)[:400].float(), torch.from_numpy(Y)[:400].float())
+test_loader = DataLoader(train_dataset, batch_size=16, shuffle=True, num_workers=0, drop_last=False)
+
 device = 'cpu'
-max_layers = 3
-class_num = 4
+param_cate = 4
+max_layers = 8
 num_param = 2
-batch_size = 15
-reinforce = Reinforce(NASCell, 20, max_layers, num_param, 35, [4, 4])
-net_manager = NetManager(num_input=784,
-                         num_classes=10,
+batch_size = 2
+reinforce = Reinforce(NASCell, 20, max_layers, num_param, 35, [param_cate] * 2)
+net_manager = NetManager(num_input=p + 2,
+                         num_outputs=1,
                          learning_rate=0.001,
                          train_loader=train_loader,
                          test_loader=test_loader,
-                         device=device)
+                         device=device,
+                         reg_param=truth,
+                         xvals=xvals)
 
-MAX_EPISODES = 2500
 step = 0
-
 a = 0.5
-
 Prices = []  # prices of everyday
 EMAs = []  # ems of everyday
 
@@ -87,23 +99,24 @@ def ema(N, Price):
 reinforce_optim = Adam(reinforce.parameters(),
                        lr=0.0006,
                        weight_decay=0.0001)
-state = torch.randn((batch_size, class_num))
-for i_episode in range(MAX_EPISODES):
+exp = 'exp0_episode_'
+ALL_STEPS = 2500
+state = torch.randn((batch_size, param_cate))
+for i_episode in range(ALL_STEPS):
     reinforce_optim.zero_grad()
     hu_act, all_anchors = reinforce.get_action(state)
     b_action, b_anchors = action_transfer(hu_act, all_anchors)
     rewards, baseline = [], []
     for idx, action in enumerate(b_action):
-        reward = net_manager.get_reward((action, b_anchors[idx]))
-        print(reward)
+        model_name = exp + str(i_episode) + '_' + str(idx)
+        reward = net_manager.get_reward((action, b_anchors[idx]), model_name)
         rewards.append(reward)
         ema(step, reward)
         baseline.append(EMAs[step])
+        print('val_loss:', reward)
     rewards = torch.from_numpy(np.array(rewards)).float()
     baseline = torch.from_numpy(np.array(baseline)).float()
-    print(rewards.mean())
     reinforce.store_roll_out(state, rewards)
-
     scheduler = StepLR(reinforce_optim, step_size=500, gamma=0.96)
     pred_logit = reinforce(state)
     state = pred_logit[0][0]

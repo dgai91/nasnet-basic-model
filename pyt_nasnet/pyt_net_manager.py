@@ -1,6 +1,6 @@
 from torch import nn
 from torch.optim import Adam
-from pyt_nasnet.pyt_model import CNN, gen_fc_dim
+from trunk.pyt_nasnet.shared_cnn import CNN, gen_fc_dim
 from sklearn.metrics import accuracy_score
 import numpy as np
 
@@ -31,7 +31,7 @@ class NetManager:
             loss_func = nn.CrossEntropyLoss()
             optimizer = Adam(model.parameters(), lr=self.learning_rate)
             model.train()
-            for i in range(10):
+            for i in range(1):
                 for step, (tx, ty) in enumerate(self.train_loader):
                     tx = tx.to(self.device)
                     optimizer.zero_grad()

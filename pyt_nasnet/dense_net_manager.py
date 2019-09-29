@@ -1,6 +1,6 @@
 from torch import nn
 from torch.optim import Adam
-from pyt_nasnet.dense_model import DenseModel
+from trunk.pyt_nasnet.dense_model import DenseModel
 from sklearn.metrics import accuracy_score
 import numpy as np
 
@@ -29,19 +29,22 @@ class NetManager:
         loss_func = nn.CrossEntropyLoss()
         optimizer = Adam(model.parameters(), lr=self.learning_rate)
         model.train()
-        for step, (tx, ty) in enumerate(self.train_loader):
-            tx = tx.view(-1, 784).to(self.device)
-            optimizer.zero_grad()
-            to = model(tx)
-            loss = loss_func(to, ty.to(self.device))
-            loss.backward()
-            optimizer.step()
-        model.eval()
-        mean_val_acc = []
-        for step, (tx, ty) in enumerate(self.test_loader):
-            tx = tx.view(-1, 784).to(self.device)
-            to = model(tx)
-            out = np.argmax(to.cpu().detach().numpy(), axis=1)
-            val_acc = accuracy_score(ty.cpu().detach().numpy(), out)
-            mean_val_acc.append(val_acc)
-        return np.mean(mean_val_acc)
+        all_mean_val_acc = []
+        for epoch in range(30):
+            for step, (tx, ty) in enumerate(self.train_loader):
+                tx = tx.view(-1, self.num_input).to(self.device)
+                optimizer.zero_grad()
+                to = model(tx)
+                loss = loss_func(to, ty.to(self.device))
+                loss.backward()
+                optimizer.step()
+            model.eval()
+            mean_val_acc = []
+            for step, (tx, ty) in enumerate(self.test_loader):
+                tx = tx.view(-1, self.num_input).to(self.device)
+                to = model(tx)
+                out = np.argmax(to.cpu().detach().numpy(), axis=1)
+                val_acc = accuracy_score(ty.cpu().detach().numpy(), out)
+                mean_val_acc.append(val_acc)
+            all_mean_val_acc.append(mean_val_acc)
+        return np.mean(all_mean_val_acc)
