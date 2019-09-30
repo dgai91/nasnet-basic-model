@@ -10,16 +10,18 @@ import torch
 from torch.distributions.one_hot_categorical import OneHotCategorical
 
 
-def action_transfer(batch_action):
-    batch_action = batch_action.detach().numpy().astype(int)
-    batch_action = np.argmax(batch_action, axis=-1)
+def action_instantiation(batch_action, param_list):
+    batch_action = batch_action.detach().numpy().astype(int).squeeze(-1)
     batch_action_list = []
-    for _ in range(batch_action.shape[0]):
-        action = [batch_action[0][x:x + 3] for x in range(0, len(batch_action[0]), 3)]
-        cnn_ksize = [KERNELS[c[0]] for c in action]
-        num_filters = [FILTERS[c[1]] for c in action]
-        max_pool_ksize = [POOLING_SIZE[c[2]] for c in action]
-        batch_action_list.append((cnn_ksize, num_filters, max_pool_ksize))
+    print(batch_action)
+    for idx in range(batch_action.shape[0]):
+        action, trans_acts = [], []
+        for x in range(0, len(batch_action[0]), len(param_list)):
+            action.append(batch_action[idx][x:x + len(param_list)])
+            print(batch_action[idx][x:x + len(param_list)])
+        for param_id, param in enumerate(param_list):
+            trans_acts.append([param[a[param_id]] for a in action])
+        batch_action_list.append(tuple(trans_acts))
     return batch_action_list
 
 
@@ -39,10 +41,10 @@ POOLING_SIZE = [1, 3, 5]
 max_layers = 3
 num_classes = 8
 hidden_dim = 100
-param_num = [KERNELS, FILTERS, POOLING_SIZE]
+all_params = [len(KERNELS), len(FILTERS), len(POOLING_SIZE)]
 batch_size = 1
 
-reinforce = Reinforce(hidden_dim, param_num)
+reinforce = Reinforce(hidden_dim, all_params, max_layers)
 net_manager = NetManager(num_input=32,
                          num_classes=10,
                          learning_rate=0.001,
@@ -66,11 +68,11 @@ reinforce_optim = Adam(reinforce.parameters(),
                        lr=0.0006,
                        weight_decay=0.0001)
 state = torch.zeros((batch_size, hidden_dim))
-hidden_state = state.copy()
+hidden_state = (state.clone(), state.clone())
 for i_episode in range(MAX_EPISODES):
     reinforce_optim.zero_grad()
     one_hot_action = reinforce(state, hidden_state, True)
-    b_action = action_transfer(one_hot_action)
+    b_action = action_instantiation(one_hot_action, all_params)
     rewards, baseline = [], []
     for action in b_action:
         reward = net_manager.get_reward(action)

@@ -12,19 +12,21 @@ class Reinforce(nn.Module):
         self.rnn_cell = nn.LSTMCell(hidden_size, hidden_size)
         self.decoders = nn.ModuleList([nn.Linear(hidden_size, params) for params in all_params])
 
-    def call_rnn(self, inputs, param_id, hidden_states=None):
-        embed = self.embedding(inputs) if param_id != 0 else inputs
-        encoded, hidden_states = self.rnn_cell(embed, hidden_states)
-        output = self.decoders[param_id](encoded)
+    def call_rnn(self, inputs, param_id, layer_id, hidden_states):
+        embed = self.embedding(inputs).squeeze(1) if param_id + layer_id != 0 else inputs
+        hidden_states = self.rnn_cell(embed, hidden_states)
+        output = self.decoders[param_id](hidden_states[0])
         return output, hidden_states
 
     def forward(self, inputs, hidden_states, is_sample=False):
         outputs = []
-        for layer_id in range(len(self.num_layers)):
+        for layer_id in range(self.num_layers):
             for param_id in range(len(self.all_params)):
-                output, hidden_states = self.call_rnn(inputs, param_id, hidden_states)
+                output, hidden_states = self.call_rnn(inputs, param_id, layer_id, hidden_states)
                 action_prob = F.softmax(output, -1)
                 inputs = action_prob.multinomial(num_samples=1)
-                inputs += sum(self.all_params[:param_id - 1])
+                print(inputs)
                 outputs.append(inputs) if is_sample else outputs.append(output)
+                if param_id > 0:
+                    inputs += sum(self.all_params[:param_id - 1])
         return torch.stack(tuple(outputs), dim=1)  # (bs, T, 1) or (bs, T, od)
