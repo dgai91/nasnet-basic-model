@@ -11,17 +11,14 @@ from torch.distributions.one_hot_categorical import OneHotCategorical
 
 
 def action_transfer(batch_action):
-    kernels = [1, 1, 3, 3, 5, 5, 3, 5]
-    filters = [16, 24, 32, 48, 64, 96, 128, 256]
-    pool_k = [1, 1, 3, 3, 1, 1, 3, 3]
     batch_action = batch_action.detach().numpy().astype(int)
     batch_action = np.argmax(batch_action, axis=-1)
     batch_action_list = []
-    for i in range(batch_action.shape[0]):
+    for _ in range(batch_action.shape[0]):
         action = [batch_action[0][x:x + 3] for x in range(0, len(batch_action[0]), 3)]
-        cnn_ksize = [kernels[c[0]] for c in action]
-        num_filters = [filters[c[1]] for c in action]
-        max_pool_ksize = [pool_k[c[2]] for c in action]
+        cnn_ksize = [KERNELS[c[0]] for c in action]
+        num_filters = [FILTERS[c[1]] for c in action]
+        max_pool_ksize = [POOLING_SIZE[c[2]] for c in action]
         batch_action_list.append((cnn_ksize, num_filters, max_pool_ksize))
     return batch_action_list
 
@@ -36,12 +33,16 @@ print("test_data:", test_data.data.size)
 train_loader = DataLoader(dataset=train_data, batch_size=64, shuffle=True)
 test_loader = DataLoader(dataset=test_data, batch_size=64)
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+KERNELS = [1, 3, 5, 7]
+FILTERS = [16, 32, 64, 128, 256]
+POOLING_SIZE = [1, 3, 5]
 max_layers = 3
 num_classes = 8
 hidden_dim = 100
-param_num = 3 * max_layers
+param_num = [KERNELS, FILTERS, POOLING_SIZE]
 batch_size = 1
-reinforce = Reinforce(num_classes, hidden_dim, param_num)
+
+reinforce = Reinforce(hidden_dim, param_num)
 net_manager = NetManager(num_input=32,
                          num_classes=10,
                          learning_rate=0.001,
