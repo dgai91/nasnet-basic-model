@@ -27,4 +27,4 @@ class Reinforce(nn.Module):
                 action = action_prob.multinomial(num_samples=1)
                 outputs.append(action) if is_sample else outputs.append(output)
                 inputs = action + sum(self.all_params[:param_id - 1]) if param_id > 0 else action
-        return torch.stack(tuple(outputs), dim=1)  # (bs, T, 1) or (bs, T, od)
+        return tuple(outputs)  # (bs, T, 1) or (bs, T, od)
