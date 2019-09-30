@@ -18,7 +18,11 @@ def action_instantiation(batch_action, param_list):
         action, trans_acts = [], []
         for x in range(0, len(batch_action[0]), len(param_list)):
             action.append(batch_action[idx][x:x + len(param_list)])
+        print(action)
         for param_id, param in enumerate(param_list):
+            for a in action:
+                print(param_id, a)
+                print(a[param_id], param)
             trans_acts.append([param[a[param_id]] for a in action])
         batch_action_list.append(tuple(trans_acts))
     return batch_action_list
@@ -41,6 +45,7 @@ max_layers = 3
 num_classes = 8
 hidden_dim = 100
 all_params = [len(KERNELS), len(FILTERS), len(POOLING_SIZE)]
+all_param_list = [KERNELS, FILTERS, POOLING_SIZE]
 batch_size = 1
 
 reinforce = Reinforce(hidden_dim, all_params, max_layers)
@@ -71,7 +76,7 @@ hidden_state = (state.clone(), state.clone())
 for i_episode in range(MAX_EPISODES):
     reinforce_optim.zero_grad()
     one_hot_action = reinforce(state, hidden_state, True)
-    b_action = action_instantiation(one_hot_action, all_params)
+    b_action = action_instantiation(one_hot_action, all_param_list)
     rewards, baseline = [], []
     for action in b_action:
         reward = net_manager.get_reward(action)
