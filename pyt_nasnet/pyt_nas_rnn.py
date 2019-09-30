@@ -24,9 +24,7 @@ class Reinforce(nn.Module):
             for param_id in range(len(self.all_params)):
                 output, hidden_states = self.call_rnn(inputs, param_id, layer_id, hidden_states)
                 action_prob = F.softmax(output, -1)
-                inputs = action_prob.multinomial(num_samples=1)
-                print(inputs)
-                outputs.append(inputs) if is_sample else outputs.append(output)
-                if param_id > 0:
-                    inputs += sum(self.all_params[:param_id - 1])
+                action = action_prob.multinomial(num_samples=1)
+                outputs.append(action) if is_sample else outputs.append(output)
+                inputs = action + sum(self.all_params[:param_id - 1]) if param_id > 0 else action
         return torch.stack(tuple(outputs), dim=1)  # (bs, T, 1) or (bs, T, od)

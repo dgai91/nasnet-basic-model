@@ -18,7 +18,6 @@ def action_instantiation(batch_action, param_list):
         action, trans_acts = [], []
         for x in range(0, len(batch_action[0]), len(param_list)):
             action.append(batch_action[idx][x:x + len(param_list)])
-            print(batch_action[idx][x:x + len(param_list)])
         for param_id, param in enumerate(param_list):
             trans_acts.append([param[a[param_id]] for a in action])
         batch_action_list.append(tuple(trans_acts))
