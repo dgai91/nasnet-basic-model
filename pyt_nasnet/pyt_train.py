@@ -11,19 +11,14 @@ from torch.distributions.one_hot_categorical import OneHotCategorical
 
 
 def action_instantiation(batch_action, param_list):
-    batch_action = batch_action.detach().numpy().astype(int).squeeze(-1)
+    batch = batch_action[0].detach().size()[0]
     batch_action_list = []
-    print(batch_action)
-    for idx in range(batch_action.shape[0]):
+    for idx in range(batch):
         action, trans_acts = [], []
-        for x in range(0, len(batch_action[0]), len(param_list)):
-            action.append(batch_action[idx][x:x + len(param_list)])
-        print(action)
+        for x in range(0, len(batch_action), len(param_list)):
+            action.append([batch_action[x + i][idx] for i in range(len(param_list))])
         for param_id, param in enumerate(param_list):
-            for a in action:
-                print(param_id, a)
-                print(a[param_id], param)
-            trans_acts.append([param[a[param_id]] for a in action])
+            trans_acts.append([param[act[param_id]] for act in action])
         batch_action_list.append(tuple(trans_acts))
     return batch_action_list
 
@@ -88,10 +83,8 @@ for i_episode in range(MAX_EPISODES):
     print(rewards.mean())
 
     scheduler = StepLR(reinforce_optim, step_size=500, gamma=0.96)
-    prob = reinforce(state, hidden_state, False)
-    target = one_hot_action.detach()
-    sampler = OneHotCategorical(logits=prob)
-    loss = torch.mean(torch.sum(-sampler.log_prob(target), dim=-1) * (rewards - baseline))
+    log_probs = reinforce(state, hidden_state, False)
+    loss = torch.mean(torch.sum(-log_probs, dim=-1) * (rewards - baseline))
     print(loss)
     loss.backward()
     reinforce_optim.step()
