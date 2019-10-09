@@ -24,8 +24,8 @@ class Reinforce(nn.Module):
             for param_id in range(len(self.all_params)):
                 output, hidden_states = self.call_rnn(inputs, param_id, layer_id, hidden_states)
                 action_prob = F.softmax(output, -1)
-                action = action_prob.multinomial(num_samples=1).detach()
                 log_prob = F.log_softmax(output, dim=-1)
+                action = action_prob.multinomial(num_samples=1).detach()
                 selected_log_prob = log_prob.gather(1, action.clone().detach())
                 actions.append(action)
                 log_probs.append(selected_log_prob[:, 0])
