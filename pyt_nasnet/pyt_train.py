@@ -1,6 +1,7 @@
 from trunk.pyt_nasnet.pyt_net_manager import NetManager
 from trunk.pyt_nasnet.pyt_nas_rnn import Reinforce
 from torchvision.datasets import MNIST, CIFAR10
+from trunk.pyt_nasnet.shared_cnn import gen_fc_dim
 from torchvision.transforms import ToTensor
 from torch.utils.data.dataloader import DataLoader
 from torch.optim import Adam
@@ -64,7 +65,7 @@ def ema(N, Price):
 
 
 reinforce_optim = Adam(reinforce.parameters(),
-                       lr=0.0006,
+                       lr=0.00035,
                        weight_decay=0.0001)
 state = torch.zeros((batch_size, hidden_dim))
 hidden_state = (state.clone(), state.clone())
@@ -74,17 +75,19 @@ for i_episode in range(MAX_EPISODES):
     b_action = action_instantiation(one_hot_action, all_param_list)
     rewards, baseline = [], []
     for action in b_action:
-        reward = net_manager.get_reward(action)
-        rewards.append(reward)
-        ema(step, reward)
-        baseline.append(EMAs[step])
-    rewards = torch.from_numpy(np.array(rewards)).float()
-    baseline = torch.from_numpy(np.array(baseline)).float()
-    print(rewards.mean())
-    # scheduler = StepLR(reinforce_optim, step_size=500, gamma=0.96)
-    print(log_probs)
-    loss = torch.mean(torch.sum(-log_probs, dim=-1) * (rewards - baseline))
-    reinforce_optim.zero_grad()
-    print(loss)
-    loss.backward()
-    reinforce_optim.step()
+        if gen_fc_dim(action, 28) > 0:
+            reward = net_manager.get_reward(action)
+            rewards.append(reward)
+            ema(step, reward)
+            baseline.append(EMAs[step])
+    if len(rewards) > 0:
+        rewards = torch.from_numpy(np.array(rewards)).float()
+        baseline = torch.from_numpy(np.array(baseline)).float()
+        print(rewards.mean())
+        # scheduler = StepLR(reinforce_optim, step_size=500, gamma=0.96)
+        print(log_probs)
+        loss = torch.mean(torch.sum(-log_probs, dim=-1) * (rewards - baseline))
+        reinforce_optim.zero_grad()
+        print(loss)
+        loss.backward()
+        reinforce_optim.step()
