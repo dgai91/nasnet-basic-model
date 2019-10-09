@@ -18,8 +18,8 @@ class Reinforce(nn.Module):
         output = self.decoders[param_id](hidden_states[0])
         return output, hidden_states
 
-    def forward(self, inputs, hidden_states, is_sample=False):
-        outputs = []
+    def forward(self, inputs, hidden_states):
+        actions, log_probs = [], []
         for layer_id in range(self.num_layers):
             for param_id in range(len(self.all_params)):
                 output, hidden_states = self.call_rnn(inputs, param_id, layer_id, hidden_states)
@@ -27,6 +27,7 @@ class Reinforce(nn.Module):
                 action = action_prob.multinomial(num_samples=1).detach()
                 log_prob = F.log_softmax(output, dim=-1)
                 selected_log_prob = log_prob.gather(1, action.clone().detach())
-                outputs.append(action) if is_sample else outputs.append(selected_log_prob[:, 0])
+                actions.append(action)
+                log_probs.append(selected_log_prob[:, 0])
                 inputs = action + sum(self.all_params[:param_id - 1]) if param_id > 0 else action
-        return torch.cat(tuple(outputs))  # (bs, T, 1) or (bs, T, od)
+        return torch.cat(tuple(actions)), torch.cat(tuple(log_probs))  # (bs, T, 1) or (bs, T, od)

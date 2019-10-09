@@ -12,7 +12,6 @@ def gen_fc_dim(cnn_config, feathers):
     for idd, filter_size in enumerate(cnn_config[0]):
         feathers = (feathers - int(filter_size) + 1 - int(cnn_config[2][idd]) + 1) / 2
         feathers = int(np.ceil(feathers))
-    print(feathers)
     return feathers
 
 

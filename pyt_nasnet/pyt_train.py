@@ -23,10 +23,10 @@ def action_instantiation(batch_action, param_list):
     return batch_action_list
 
 
-# train_data = MNIST('../mnist', train=True, transform=ToTensor(), download=False)
-# test_data = MNIST('../mnist', train=False, transform=ToTensor())
-train_data = CIFAR10('../cifar10', train=True, transform=ToTensor(), download=False)
-test_data = CIFAR10('../cifar10', train=False, transform=ToTensor())
+train_data = MNIST('../mnist', train=True, transform=ToTensor(), download=False)
+test_data = MNIST('../mnist', train=False, transform=ToTensor())
+# train_data = CIFAR10('../cifar10', train=True, transform=ToTensor(), download=False)
+# test_data = CIFAR10('../cifar10', train=False, transform=ToTensor())
 print("train_data:", train_data.data.size)
 print("test_data:", test_data.data.size)
 
@@ -42,9 +42,9 @@ hidden_dim = 100
 all_params = [len(KERNELS), len(FILTERS), len(POOLING_SIZE)]
 all_param_list = [KERNELS, FILTERS, POOLING_SIZE]
 batch_size = 1
-
 reinforce = Reinforce(hidden_dim, all_params, max_layers)
-net_manager = NetManager(num_input=32,
+net_manager = NetManager(num_input=28,
+                         in_channel=1,
                          num_classes=10,
                          learning_rate=0.001,
                          train_loader=train_loader,
@@ -69,8 +69,8 @@ reinforce_optim = Adam(reinforce.parameters(),
 state = torch.zeros((batch_size, hidden_dim))
 hidden_state = (state.clone(), state.clone())
 for i_episode in range(MAX_EPISODES):
-    reinforce_optim.zero_grad()
-    one_hot_action = reinforce(state, hidden_state, True)
+
+    one_hot_action, log_probs = reinforce(state, hidden_state)
     b_action = action_instantiation(one_hot_action, all_param_list)
     rewards, baseline = [], []
     for action in b_action:
@@ -81,10 +81,10 @@ for i_episode in range(MAX_EPISODES):
     rewards = torch.from_numpy(np.array(rewards)).float()
     baseline = torch.from_numpy(np.array(baseline)).float()
     print(rewards.mean())
-
-    scheduler = StepLR(reinforce_optim, step_size=500, gamma=0.96)
-    log_probs = reinforce(state, hidden_state, False)
+    # scheduler = StepLR(reinforce_optim, step_size=500, gamma=0.96)
+    print(log_probs)
     loss = torch.mean(torch.sum(-log_probs, dim=-1) * (rewards - baseline))
+    reinforce_optim.zero_grad()
     print(loss)
     loss.backward()
     reinforce_optim.step()

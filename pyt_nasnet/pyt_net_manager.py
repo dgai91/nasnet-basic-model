@@ -7,6 +7,7 @@ import numpy as np
 
 class NetManager:
     def __init__(self, num_input,
+                 in_channel,
                  num_classes,
                  learning_rate,
                  train_loader,
@@ -15,6 +16,7 @@ class NetManager:
                  bathc_size=100):
 
         self.num_input = num_input
+        self.in_channel = in_channel
         self.num_classes = num_classes
         self.learning_rate = learning_rate
         self.train_loader = train_loader
@@ -27,7 +29,7 @@ class NetManager:
         feathers = gen_fc_dim(action, self.num_input)
         mean_val_acc = []
         if feathers > 0:
-            model = CNN(self.num_input, 3, self.num_classes, action).to(self.device)
+            model = CNN(self.num_input, self.in_channel, self.num_classes, action).to(self.device)
             loss_func = nn.CrossEntropyLoss()
             optimizer = Adam(model.parameters(), lr=self.learning_rate)
             model.train()
