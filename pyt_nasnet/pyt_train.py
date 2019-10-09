@@ -1,14 +1,13 @@
-from trunk.pyt_nasnet.pyt_net_manager import NetManager
-from trunk.pyt_nasnet.pyt_nas_rnn import Reinforce
-from torchvision.datasets import MNIST, CIFAR10
-from trunk.pyt_nasnet.shared_cnn import gen_fc_dim
-from torchvision.transforms import ToTensor
-from torch.utils.data.dataloader import DataLoader
-from torch.optim import Adam
-from torch.optim.lr_scheduler import StepLR
 import numpy as np
 import torch
-from torch.distributions.one_hot_categorical import OneHotCategorical
+from torch.optim import Adam
+from torch.utils.data.dataloader import DataLoader
+from torchvision.datasets import MNIST, CIFAR10
+from torchvision.transforms import ToTensor
+
+from trunk.pyt_nasnet.pyt_nas_rnn import Reinforce
+from trunk.pyt_nasnet.pyt_net_manager import NetManager
+from trunk.pyt_nasnet.shared_cnn import gen_fc_dim
 
 
 def action_instantiation(batch_action, param_list):
